@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dbt-hakari"
+dynamic = ["version"]
+description = "Verify BigQuery on-demand billing against your dbt project and find the optimal set of views to materialize."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["dbt", "bigquery", "cost", "optimization", "milp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Database",
+    "Typing :: Typed",
+]
+dependencies = [
+    "google-cloud-bigquery>=3.0",
+    "pydantic>=2.5",
+    "scipy>=1.9",
+    "tomli>=2; python_version < '3.11'",
+    "typer>=0.9",
+    "rich>=13",
+]
+
+[project.optional-dependencies]
+highs = ["highspy"]
+dev = ["pytest>=7", "hypothesis>=6", "ruff>=0.5", "mypy>=1.8"]
+
+[project.scripts]
+hakari = "dbt_hakari.cli:app"
+dbt-hakari = "dbt_hakari.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/kiwamizamurai/dbt-hakari"
+Issues = "https://github.com/kiwamizamurai/dbt-hakari/issues"
+Changelog = "https://github.com/kiwamizamurai/dbt-hakari/blob/main/CHANGELOG.md"
+
+[tool.hatch.version]
+path = "src/dbt_hakari/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "README.md", "README.ja.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md", "pyproject.toml"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dbt_hakari"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src"]
+ignore_missing_imports = true

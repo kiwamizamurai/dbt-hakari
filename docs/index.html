@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en" data-theme-auto>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>dbt-hakari: weigh your views, shave your BigQuery bill</title>
+  <meta name="description" content="dbt-hakari checks BigQuery's on-demand billing formula against your real bill, then finds which dbt views to materialize with exact MILP optimization.">
+  <meta name="theme-color" content="#1f3a5f">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="dbt-hakari: weigh your views, shave your BigQuery bill">
+  <meta property="og:description" content="Exact optimization of which dbt views to materialize on BigQuery on-demand, with a trust gate against your real bill.">
+  <meta property="og:image" content="https://kiwamizamurai.github.io/dbt-hakari/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+JP:wght@400;500;700;800&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="nav" id="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="" width="32" height="32"></picture>dbt-hakari</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#problem"><span lang="en">Why</span><span lang="ja">なぜ</span></a>
+      <a href="#how"><span lang="en">How it works</span><span lang="ja">仕組み</span></a>
+      <a href="#result"><span lang="en">Result</span><span lang="ja">結果</span></a>
+      <a href="#install"><span lang="en">Install</span><span lang="ja">導入</span></a>
+    </nav>
+    <div class="tools">
+      <button class="chip-btn" id="lang" type="button" aria-label="Switch language">日本語</button>
+      <button class="chip-btn" id="theme" type="button" aria-label="Toggle dark mode">◐</button>
+      <a class="chip-btn" href="https://github.com/kiwamizamurai/dbt-hakari" style="text-decoration:none">GitHub ↗</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <svg class="seigaiha" aria-hidden="true" focusable="false">
+      <defs>
+        <pattern id="wave" width="80" height="40" patternUnits="userSpaceOnUse">
+          <g id="wave-g">
+            <circle cx="0" cy="40" r="36"/><circle cx="0" cy="40" r="27"/><circle cx="0" cy="40" r="18"/><circle cx="0" cy="40" r="9"/>
+            <circle cx="80" cy="40" r="36"/><circle cx="80" cy="40" r="27"/><circle cx="80" cy="40" r="18"/><circle cx="80" cy="40" r="9"/>
+            <circle cx="40" cy="20" r="36"/><circle cx="40" cy="20" r="27"/><circle cx="40" cy="20" r="18"/><circle cx="40" cy="20" r="9"/>
+          </g>
+        </pattern>
+      </defs>
+      <rect id="wave-rect" width="100%" height="140%" fill="url(#wave)"/>
+    </svg>
+    <div class="wrap hero-grid">
+      <div>
+        <div class="kicker">dbt × BigQuery on-demand</div>
+        <h1 id="h1">
+          <span lang="en"><span class="word">Weigh</span> <span class="word">your</span> <span class="word">views.</span> <em class="word">Shave</em> <span class="word">your</span> <span class="word">bill.</span></span>
+          <span lang="ja"><span class="word">秤にかけて、</span><em class="word">請求を削る。</em></span>
+        </h1>
+        <p class="lead hero-copy">
+          <span lang="en">dbt-hakari checks BigQuery's billing formula against your real bill, then finds exactly which dbt views are worth turning into tables, with integer programming instead of guesswork.</span>
+          <span lang="ja">BigQuery の請求の式を、実際の請求で確かめ、どの dbt の view を table にすべきかを、勘ではなく整数計画法で厳密に求めます。</span>
+        </p>
+        <div class="cta hero-copy">
+          <a class="btn primary" href="#install"><span lang="en">Install</span><span lang="ja">インストール</span> →</a>
+          <a class="btn ghost" href="https://github.com/kiwamizamurai/dbt-hakari">GitHub</a>
+        </div>
+        <div class="badges hero-copy">
+          <span>MIT</span><span>Python 3.10+</span><span>HiGHS MILP</span><span>read-only</span><span>no dbt-core</span>
+        </div>
+      </div>
+      <div class="hero-art">
+        <picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img class="hero-logo" id="hero-logo" src="assets/logo.svg" alt="dbt-hakari logo: a balance scale" width="112" height="112"></picture>
+        <div class="terminal" role="img" aria-label="Example output of hakari verify and hakari optimize">
+          <div class="terminal-bar"><i></i><i></i><i></i></div>
+<pre id="term"><span class="t-line"><span class="t-prompt">$</span> hakari verify</span>
+<span class="t-line">trust gate: <span class="t-ok">PASS</span></span>
+<span class="t-line t-dim"> graph == dry-run table counts  100.0% of 32 nodes</span>
+<span class="t-line t-dim"> bill within 5% of the formula  100.0% of 32 nodes</span>
+<span class="t-line"> </span>
+<span class="t-line"><span class="t-prompt">$</span> hakari optimize --max-k 4 --compare-greedy</span>
+<span class="t-line t-dim"> K  GiB/day  saving  greedy GiB/day</span>
+<span class="t-line"> 0   0.52     0%     -</span>
+<span class="t-line"> 1   0.44    17%     0.44 (+0.00)</span>
+<span class="t-line"> 2   0.36    <span class="t-ok">32%</span>     0.36 (+0.00)</span>
+<span class="t-line"> 3   0.36    32%     <span class="t-hot">0.37 (+0.01)</span></span>
+<span class="t-line"> 4   0.36    32%     <span class="t-hot">0.38 (+0.02)</span></span>
+<span class="t-line"> </span>
+<span class="t-line">recommended: materialize <span class="t-ok">2</span> view(s)</span>
+<span class="t-line t-dim">  int_orders        saves 0.09 GiB/day</span>
+<span class="t-line t-dim">  int_order_lines   saves 0.08 GiB/day</span>
+<span class="t-line"><span class="t-prompt">$</span> <span class="caret"></span></span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="problem">
+    <div class="wrap problem-grid">
+      <div class="reveal">
+        <div class="kicker"><span lang="en">The problem</span><span lang="ja">問題</span></div>
+        <h2><span lang="en">A view read twice is paid for twice.</span><span lang="ja">2 回読まれる view は、2 回払う。</span></h2>
+        <p class="lead">
+          <span lang="en">BigQuery bills at least 10 MiB for every table a query touches. A dbt view is expanded to its base tables each time it is read, so every test and every downstream model pays that minimum again.</span>
+          <span lang="ja">BigQuery は、クエリが触れるテーブル 1 つにつき、最低 10 MiB を課金します。dbt の view は、読まれるたびに元のテーブルへ展開されるので、テストや下流のモデルのたびに、その最小額を払い直します。</span>
+        </p>
+        <div class="formula">
+          billed = max( <b>bytes</b>, 10 MiB × <b>tables</b>, 10 MiB )
+          <small><span lang="en">Materialize a view over T tables read by n readers when n·T &gt; T + n.</span><span lang="ja">T 個のテーブルを n 個が読む view は、n·T &gt; T + n のとき、table にすると得です。</span></small>
+        </div>
+      </div>
+      <div class="diagram reveal">
+        <svg viewBox="0 0 640 310" role="img" aria-label="Three tables feed a view that three tests read">
+          <g id="d-lines">
+            <path class="d-line l-in" d="M130 62 C200 62 200 150 265 150"/><path class="d-line l-in" d="M130 142 C200 142 200 150 265 150"/><path class="d-line l-in" d="M130 222 C200 222 200 150 265 150"/>
+            <path class="d-line" d="M375 150 C440 150 440 62 510 62"/><path class="d-line" d="M375 150 C440 150 440 142 510 142"/><path class="d-line" d="M375 150 C440 150 440 222 510 222"/>
+          </g>
+          <g><rect class="d-node" x="20" y="40" width="110" height="44" rx="10"/><text class="d-text" x="75" y="67" text-anchor="middle">table a</text>
+             <rect class="d-node" x="20" y="120" width="110" height="44" rx="10"/><text class="d-text" x="75" y="147" text-anchor="middle">table b</text>
+             <rect class="d-node" x="20" y="200" width="110" height="44" rx="10"/><text class="d-text" x="75" y="227" text-anchor="middle">table c</text></g>
+          <rect class="d-view" id="d-view" x="265" y="108" width="110" height="84" rx="14"/><text class="d-text" id="d-view-label" x="320" y="155" text-anchor="middle">view V</text>
+          <g><rect class="d-node" x="510" y="40" width="110" height="44" rx="10"/><text class="d-text" x="565" y="67" text-anchor="middle">test 1</text>
+             <rect class="d-node" x="510" y="120" width="110" height="44" rx="10"/><text class="d-text" x="565" y="147" text-anchor="middle">test 2</text>
+             <rect class="d-node" x="510" y="200" width="110" height="44" rx="10"/><text class="d-text" x="565" y="227" text-anchor="middle">test 3</text></g>
+          <g id="d-chips">
+            <g class="chip"><rect class="d-chip" x="414" y="34" width="72" height="22" rx="11"/><text class="d-chip-text" x="450" y="49" text-anchor="middle">10 MiB ×3</text></g>
+            <g class="chip"><rect class="d-chip" x="414" y="130" width="72" height="22" rx="11"/><text class="d-chip-text" x="450" y="145" text-anchor="middle">10 MiB ×3</text></g>
+            <g class="chip"><rect class="d-chip" x="414" y="226" width="72" height="22" rx="11"/><text class="d-chip-text" x="450" y="241" text-anchor="middle">10 MiB ×3</text></g>
+          </g>
+          <text class="d-total" id="d-total" x="320" y="290" text-anchor="middle">90 MiB / day</text>
+        </svg>
+        <div style="text-align:center;margin-top:14px"><button class="chip-btn" id="d-toggle" type="button"><span lang="en">Materialize V</span><span lang="ja">V を table にする</span></button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" style="background:linear-gradient(180deg,transparent,color-mix(in srgb,var(--ai-soft) 7%,transparent))">
+    <div class="wrap">
+      <div class="reveal"><div class="kicker"><span lang="en">How it works</span><span lang="ja">仕組み</span></div>
+      <h2><span lang="en">Measure. Verify. Optimize.</span><span lang="ja">測る。確かめる。選ぶ。</span></h2>
+      <p class="lead"><span lang="en">It only recommends after it has proven, on your own project, that its cost model matches your bill.</span><span lang="ja">あなた自身のプロジェクトで、コストの式が実際の請求と合うと確かめてから、はじめて提案します。</span></p></div>
+      <div class="steps">
+        <article class="card step reveal">
+          <h3>collect</h3>
+          <p><span lang="en">Dry-runs every model and test (free) and reads the last 14 days of job history with one capped SELECT.</span><span lang="ja">全モデルとテストを dry-run し（無料）、直近 14 日の履歴を、上限つきの SELECT 1 回で読みます。</span></p>
+          <code class="code">hakari collect --project my-project \
+  --location asia-northeast2</code>
+        </article>
+        <article class="card step reveal">
+          <h3>verify</h3>
+          <p><span lang="en">Compares the formula with what you were really billed. If it does not match, it refuses to go on.</span><span lang="ja">式と、実際に請求された額を比べます。合わなければ、そこで先に進みません。</span></p>
+          <code class="code">hakari verify --format json</code>
+          <div class="pills"><span class="pill pass">PASS</span><span class="pill warn">WARN</span><span class="pill fail">FAIL → exit 4</span></div>
+        </article>
+        <article class="card step reveal">
+          <h3>optimize</h3>
+          <p><span lang="en">Solves for K = 0, 1, 2, … views exactly (MILP, HiGHS) and shows how far greedy selection falls behind.</span><span lang="ja">K = 0, 1, 2, … 個の view の最適な選び方を、厳密に（MILP、HiGHS）解き、貪欲法との差も示します。</span></p>
+          <code class="code">hakari optimize --max-k 8 \
+  --compare-greedy</code>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="result" class="result">
+    <div class="wrap">
+      <div class="reveal"><div class="kicker"><span lang="en">Result</span><span lang="ja">結果</span></div>
+      <h2><span lang="en">Exact beats greedy, and you see by how much.</span><span lang="ja">貪欲法より確実に良く、その差も見える。</span></h2>
+      <p class="lead"><span lang="en">The best set of K views is not nested: the best 4 do not contain the best 3. Greedy selection drifts away from the optimum as K grows.</span><span lang="ja">K 個の最適な選び方は入れ子になりません。K を増やすと、貪欲法は最適解から離れていきます。</span></p></div>
+      <div class="chart reveal" role="img" aria-label="Bar chart: GiB per day for K from 0 to 4, exact versus greedy">
+        <div class="bars" id="bars">
+          <div class="bar-group"><div class="bar exact" data-v="0.52"><span>0.52</span></div><div class="bar greedy" data-v="0.52"></div></div>
+          <div class="bar-group"><div class="bar exact" data-v="0.44"><span>0.44</span></div><div class="bar greedy" data-v="0.44"></div></div>
+          <div class="bar-group"><div class="bar exact" data-v="0.36"><span>0.36</span></div><div class="bar greedy" data-v="0.36"></div></div>
+          <div class="bar-group"><div class="bar exact" data-v="0.36"><span>0.36</span></div><div class="bar greedy" data-v="0.37"><span>0.37</span></div></div>
+          <div class="bar-group"><div class="bar exact" data-v="0.36"><span>0.36</span></div><div class="bar greedy" data-v="0.38"><span>0.38</span></div></div>
+        </div>
+        <div class="axis"><span>K=0</span><span>K=1</span><span>K=2</span><span>K=3</span><span>K=4</span></div>
+        <div class="legend"><span><i style="background:var(--shu)"></i><span lang="en">exact (MILP)</span><span lang="ja">厳密解（MILP）</span></span><span><i style="background:var(--ai)"></i><span lang="en">greedy</span><span lang="ja">貪欲法</span></span><span>GiB / day</span></div>
+        <p class="note"><span lang="en">Output on a synthetic example project, not real data. Savings are estimates: measure your bill after you change a view.</span><span lang="ja">合成した例のプロジェクトでの出力で、実データではありません。節約額は見積もりです。view を変えたあと、請求で確かめてください。</span></p>
+      </div>
+      <div class="stats">
+        <div class="card stat reveal"><strong data-count="32" data-suffix="%">32%</strong><span><span lang="en">saved on the example project</span><span lang="ja">例のプロジェクトでの節約率</span></span></div>
+        <div class="card stat reveal"><strong data-count="0.5" data-decimals="1" data-suffix=" GiB">0.5 GiB</strong><span><span lang="en">the only billed query (history read)</span><span lang="ja">課金される唯一のクエリ（履歴の読み取り）</span></span></div>
+        <div class="card stat reveal"><strong data-count="0" data-suffix=" deps">0 deps</strong><span><span lang="en">on dbt-core: it reads manifest.json</span><span lang="ja">dbt-core への依存。manifest.json を読むだけ</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <div class="reveal"><div class="kicker"><span lang="en">Built to be trusted</span><span lang="ja">信頼のために</span></div>
+      <h2><span lang="en">Careful by default.</span><span lang="ja">慎重さが、既定。</span></h2></div>
+      <div class="features">
+        <article class="card reveal"><h3><i>∑</i><span lang="en">Exact optimization</span><span lang="ja">厳密な最適化</span></h3><p><span lang="en">A mixed-integer program solved by HiGHS, cross-checked against brute force on random DAGs.</span><span lang="ja">HiGHS で解く混合整数計画。ランダムな DAG で、全探索との一致を確かめています。</span></p></article>
+        <article class="card reveal"><h3><i>✓</i><span lang="en">Trust gate</span><span lang="ja">信頼ゲート</span></h3><p><span lang="en">Checks table counts against dry-runs and the formula against your real bill before recommending anything.</span><span lang="ja">提案の前に、テーブル数を dry-run と、式を実際の請求と照合します。</span></p></article>
+        <article class="card reveal"><h3><i>⊘</i><span lang="en">Read-only and cheap</span><span lang="ja">読み取り専用で安価</span></h3><p><span lang="en">Only dry-runs and one capped INFORMATION_SCHEMA SELECT. Anything else raises an error.</span><span lang="ja">dry-run と、上限つきの INFORMATION_SCHEMA への SELECT 1 回だけ。それ以外は、エラーにします。</span></p></article>
+        <article class="card reveal"><h3><i>⌘</i><span lang="en">CI-ready</span><span lang="ja">CI で使える</span></h3><p><span lang="en"><code>--format json|markdown</code>, results on stdout, messages on stderr, stable exit codes.</span><span lang="ja"><code>--format json|markdown</code>。結果は stdout、メッセージは stderr、終了コードも固定です。</span></p></article>
+        <article class="card reveal"><h3><i>⚑</i><span lang="en">Pin what must stay a view</span><span lang="ja">view のまま残すものを固定</span></h3><p><span lang="en">A <code>.hakari-ignore</code> file with a reason per line, shown in the plan.</span><span lang="ja">1 行ごとに理由を書ける <code>.hakari-ignore</code>。プランにも表示されます。</span></p></article>
+        <article class="card reveal"><h3><i>⟡</i><span lang="en">Typed and validated</span><span lang="ja">型つきで検証済み</span></h3><p><span lang="en">Pydantic models and constrained types: a bad config value is reported with its name.</span><span lang="ja">pydantic のモデルと制約つきの型。設定の誤りは、項目名つきで報告されます。</span></p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="install" style="background:linear-gradient(0deg,transparent,color-mix(in srgb,var(--shu) 6%,transparent))">
+    <div class="wrap">
+      <div class="reveal"><div class="kicker"><span lang="en">Install</span><span lang="ja">導入</span></div>
+      <h2><span lang="en">Not on PyPI. Just a wheel.</span><span lang="ja">PyPI なしで、wheel 1 つ。</span></h2>
+      <p class="lead"><span lang="en">Install the wheel from the latest GitHub release with the tool you already use. Python 3.10+.</span><span lang="ja">普段使っているツールで、最新の GitHub Release の wheel を入れます。Python 3.10 以上。</span></p></div>
+      <div class="tabs reveal" role="tablist" aria-label="Install method">
+        <button class="tab" role="tab" aria-selected="true" aria-controls="p-uv" id="t-uv">uv tool</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-pipx" id="t-pipx">pipx</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-pip" id="t-pip">pip</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="p-uvx" id="t-uvx">uvx (no install)</button>
+      </div>
+      <div class="install-box reveal">
+        <div class="panel" id="p-uv" role="tabpanel" aria-labelledby="t-uv"><code class="code" data-copy>uv tool install https://github.com/kiwamizamurai/dbt-hakari/releases/download/v0.1.0/dbt_hakari-0.1.0-py3-none-any.whl</code></div>
+        <div class="panel" id="p-pipx" role="tabpanel" aria-labelledby="t-pipx" hidden><code class="code" data-copy>pipx install https://github.com/kiwamizamurai/dbt-hakari/releases/download/v0.1.0/dbt_hakari-0.1.0-py3-none-any.whl</code></div>
+        <div class="panel" id="p-pip" role="tabpanel" aria-labelledby="t-pip" hidden><code class="code" data-copy>pip install https://github.com/kiwamizamurai/dbt-hakari/releases/download/v0.1.0/dbt_hakari-0.1.0-py3-none-any.whl</code></div>
+        <div class="panel" id="p-uvx" role="tabpanel" aria-labelledby="t-uvx" hidden><code class="code" data-copy>uvx --from git+https://github.com/kiwamizamurai/dbt-hakari hakari --help</code></div>
+        <button class="chip-btn copy" id="copy" type="button"><span lang="en">Copy</span><span lang="ja">コピー</span></button>
+      </div>
+      <p class="note reveal" style="text-align:left"><span lang="en">Then: <code>hakari collect</code>, <code>hakari verify</code>, <code>hakari optimize</code>. You need a <code>target/manifest.json</code> from <code>dbt compile</code>.</span><span lang="ja">そのあと、<code>hakari collect</code>、<code>hakari verify</code>、<code>hakari optimize</code> の順に実行します。<code>dbt compile</code> で作った <code>target/manifest.json</code> が必要です。</span></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div class="brand"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg"><img src="assets/logo.svg" alt="" width="28" height="28"></picture> dbt-hakari · 秤 · MIT</div>
+    <nav aria-label="Links">
+      <a href="https://github.com/kiwamizamurai/dbt-hakari">GitHub</a>
+      <a href="https://github.com/kiwamizamurai/dbt-hakari/releases">Releases</a>
+      <a href="https://github.com/kiwamizamurai/dbt-hakari/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/kiwamizamurai/dbt-hakari/issues">Issues</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
