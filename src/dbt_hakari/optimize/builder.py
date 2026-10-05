@@ -1,6 +1,6 @@
 """Build the MILP.
 
-Notation (see docs/formulation.md). For a query q and a node u that appears in q's SQL:
+Notation. For a query q and a node u that appears in q's SQL:
 
 * ``x_v``      1 if view v is materialized as a table.
 * ``r[q,u]``   how much u is read by q (0..1). Direct parents are read: r = 1.

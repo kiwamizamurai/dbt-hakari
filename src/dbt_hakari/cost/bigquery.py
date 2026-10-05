@@ -19,7 +19,7 @@ class BigQueryOnDemand:
     when every table is small (both give 10 MiB x tables) or every table is large (both give the
     total). They differ when a query reads one large and several small tables, where the model
     is optimistic by up to 10 MiB per small table. Per-table bytes are not available from a
-    dry-run, so the model keeps the total; see docs/formulation.md.
+    dry-run, so the model keeps the total.
     """
 
     name: str = "bigquery-on-demand"
