@@ -188,7 +188,7 @@ Settings are read from `--config`, else `hakari.toml`, else the `[tool.dbt-hakar
 
 ```bash
 .venv/bin/python -m pytest      # unit tests and brute-force cross-checks (hypothesis)
-.venv/bin/ruff check src tests scripts
+.venv/bin/ruff check src tests
 .venv/bin/mypy
 ```
 

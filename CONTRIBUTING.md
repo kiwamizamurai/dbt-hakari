@@ -3,7 +3,7 @@
 ```bash
 uv venv && uv pip install -e ".[dev]"
 .venv/bin/python -m pytest
-.venv/bin/ruff check src tests scripts && .venv/bin/ruff format src tests scripts
+.venv/bin/ruff check src tests && .venv/bin/ruff format src tests
 .venv/bin/mypy
 ```
 
