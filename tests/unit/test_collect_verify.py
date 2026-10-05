@@ -66,6 +66,7 @@ def test_underestimates_are_reported_separately():
     assert report.verdict is Verdict.FAIL
     assert report.underestimate_rate == 1.0
     assert report.overestimate_rate == 0.0
+    assert any("billed more than the formula predicts" in note for note in report.notes)
 
 
 def test_cache_hits_failed_jobs_and_scripts_are_ignored():

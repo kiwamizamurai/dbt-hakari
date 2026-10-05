@@ -135,7 +135,7 @@ exclude = ["path:models/adhoc/*"]
 <summary><b>Limits</b></summary>
 
 - BigQuery on-demand pricing and dbt only. Editions, reservations and BI Engine are out of scope (detected and flagged). Needs dbt-core 1.5+ manifests (schema v9+) with compiled SQL.
-- The billing minimum is 10 MiB per referenced table and per query (official docs). Wildcard-table minimum billing is unverified.
+- The billing minimum is 10 MiB per referenced table and per query (official docs). The model applies it to the total, which is optimistic for a mix of large and small tables. Wildcard-table minimum billing is unverified. See [docs/formulation.md](docs/formulation.md) for the model, its assumptions and the review log.
 - Alpha: validated on one real project so far.
 
 </details>

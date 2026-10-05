@@ -207,6 +207,13 @@ def verify(
         report.overestimate_rate = over / len(errors)
         report.underestimate_rate = under / len(errors)
         report.median_abs_err = statistics.median(errors)
+        if under:
+            report.notes.append(
+                f"{under} node(s) were billed more than the formula predicts. A common cause is "
+                "a query that reads one large and several small tables: BigQuery applies the "
+                "10 MiB minimum to each table, the formula applies it to the total. The model is "
+                "then optimistic about how much a view's extra tables cost (docs/formulation.md)"
+            )
 
     verdict = _graph_verdict(report.graph_match_rate, t) if n_graph else Verdict.FAIL
     verdict = _worst(verdict, _bill_verdict(report, t))

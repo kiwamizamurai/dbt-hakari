@@ -13,6 +13,13 @@ class BigQueryOnDemand:
     The official documentation states that the minimum "processed data per referenced table" is
     10 MiB regardless of the table's actual size, and that the minimum per query is 10 MiB.
     Views are expanded, so every base table beneath a view counts.
+
+    The model bills ``max(total bytes, 10 MiB x tables, 10 MiB)``. Applied literally, the
+    per-table rule gives ``sum over tables of max(bytes of that table, 10 MiB)``. The two agree
+    when every table is small (both give 10 MiB x tables) or every table is large (both give the
+    total). They differ when a query reads one large and several small tables, where the model
+    is optimistic by up to 10 MiB per small table. Per-table bytes are not available from a
+    dry-run, so the model keeps the total; see docs/formulation.md.
     """
 
     name: str = "bigquery-on-demand"

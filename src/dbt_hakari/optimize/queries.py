@@ -6,6 +6,7 @@ view *if* it were materialized.
 
 from __future__ import annotations
 
+import statistics
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -30,6 +31,18 @@ def runs_per_day(uid: str, history: History | None, assume_daily: bool) -> float
     return node.runs_per_day if node else 1.0
 
 
+def build_frequency(graph: Graph, history: History | None, assume_daily: bool) -> float:
+    """How often a view that becomes a table would be built: as often as the project's own
+    table models, because one ``dbt run`` builds them all. A view has no job of its own, so its
+    frequency cannot be read from the history directly."""
+    if assume_daily or history is None:
+        return 1.0
+    rates = [
+        history.nodes[uid].runs_per_day for uid in graph.executing_models() if uid in history.nodes
+    ]
+    return statistics.median(rates) if rates else 1.0
+
+
 def build_queries(
     graph: Graph,
     cost_data: CostData,
@@ -38,8 +51,10 @@ def build_queries(
     *,
     skip: frozenset[str] = frozenset(),
     assume_daily: bool = False,
-    build_runs_per_day: float = 1.0,
+    build_runs_per_day: float | None = None,
 ) -> list[Query]:
+    if build_runs_per_day is None:
+        build_runs_per_day = build_frequency(graph, history, assume_daily)
     queries: list[Query] = []
     for uid in graph.executing_models():
         cost = cost_data.nodes.get(uid)
