@@ -1,0 +1,21 @@
+name: Release
+
+# Run by hand (Actions > Release > Run workflow). The script does the work: it builds the wheel and
+# sdist, writes SHA256SUMS and the notes from CHANGELOG.md, tags the commit and creates the release.
+# It refuses to release a version that already exists.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: python3 scripts/release.py
+        env:
+          GH_TOKEN: ${{ github.token }}
