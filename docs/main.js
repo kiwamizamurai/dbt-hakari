@@ -16,8 +16,8 @@
     lang = next; root.lang = next; store.set("hakari-lang", next);
     $("#lang").textContent = next === "ja" ? "English" : "日本語";
     document.title = next === "ja"
-      ? "dbt-hakari: view を秤にかけて、BigQuery の請求を削る"
-      : "dbt-hakari: weigh your views, shave your BigQuery bill";
+      ? "dbt-hakari: モデルを秤にかけて、BigQuery の請求を削る"
+      : "dbt-hakari: weigh your models, shave your BigQuery bill";
   }
   setLang(lang);
   $("#lang").addEventListener("click", function () { setLang(lang === "ja" ? "en" : "ja"); });

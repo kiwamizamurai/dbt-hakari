@@ -155,13 +155,13 @@ code, .code { font-family: var(--mono); font-size: 0.86em; }
 /* result */
 .result { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--ai-soft) 9%, transparent)); }
 .chart { margin-top: 40px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 30px 26px 22px; box-shadow: var(--shadow); }
-.bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(8px, 3vw, 28px); align-items: end; height: 240px; }
+.bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(8px, 3vw, 28px); align-items: end; height: 240px; }
 .bar-group { display: flex; gap: 6px; align-items: flex-end; height: 100%; justify-content: center; position: relative; }
 .bar { width: min(34px, 40%); border-radius: 8px 8px 2px 2px; transform-origin: bottom; position: relative; }
 .bar.exact { background: linear-gradient(180deg, var(--shu-soft), var(--shu)); }
 .bar.greedy { background: linear-gradient(180deg, var(--ai-soft), var(--ai)); opacity: 0.85; }
 .bar span { position: absolute; top: -22px; left: 50%; transform: translateX(-50%); font: 700 0.7rem/1 var(--mono); color: var(--muted); white-space: nowrap; }
-.axis { display: grid; grid-template-columns: repeat(5, 1fr); gap: clamp(8px, 3vw, 28px); margin-top: 12px; text-align: center; font: 600 0.8rem var(--mono); color: var(--muted); }
+.axis { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(8px, 3vw, 28px); margin-top: 12px; text-align: center; font: 600 0.8rem var(--mono); color: var(--muted); }
 .legend { display: flex; gap: 20px; justify-content: center; margin-top: 18px; font-size: 0.85rem; color: var(--muted); flex-wrap: wrap; }
 .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 26px; }
