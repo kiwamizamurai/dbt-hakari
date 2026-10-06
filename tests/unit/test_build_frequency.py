@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from dbt_hakari.cost import BigQueryOnDemand
 from dbt_hakari.costdata import CostData, NodeCost
 from dbt_hakari.graph import Graph, NodeKind
 from dbt_hakari.history import History, NodeHistory
-from dbt_hakari.optimize.queries import build_frequency, build_queries
+from dbt_hakari.optimize.problem import Candidate
+from dbt_hakari.optimize.queries import build_frequency, build_problem
 from tests.helpers import node
 
 
@@ -48,6 +50,8 @@ def test_the_build_query_carries_that_frequency():
     cost = CostData(
         nodes={uid: NodeCost(uid=uid, bytes_processed=1, n_tables=1) for uid in ("V", "T1", "T2")}
     )
-    queries = build_queries(graph, cost, history(4.0, 4.0), ["V"])
-    build = next(q for q in queries if q.build_of == "V")
+    problem = build_problem(
+        graph, cost, history(4.0, 4.0), BigQueryOnDemand(), {"V": Candidate("V", False, 1.0)}
+    )
+    build = next(q for q in problem.queries if q.build_of == "V")
     assert build.weight == 4.0

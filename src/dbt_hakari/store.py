@@ -35,9 +35,12 @@ class DataStore:
             return None
         try:
             return model.model_validate_json(path.read_text())
+        except OSError as error:
+            raise UsageError(f"cannot read {path}: {error}") from error
         except ValidationError as error:
             raise UsageError(
-                f"{path} is not valid ({describe(error)}): re-run `dbt-hakari collect`"
+                f"{path} cannot be read ({describe(error)}). It is damaged, or written by "
+                "another version of dbt-hakari: run `dbt-hakari collect` again"
             ) from error
 
     def save_cost_data(self, cost_data: CostData) -> None:
@@ -59,6 +62,12 @@ class DataStore:
                 f"{self.directory / 'costdata.json'} not found: run `dbt-hakari collect` first"
             )
         return cost_data
+
+    def load_verification(self) -> VerificationReport | None:
+        return self._read("verification.json", VerificationReport)
+
+    def load_plan(self) -> Plan | None:
+        return self._read("plan.json", Plan)
 
     def load_history(self) -> History | None:
         return self._read("history.json", History)

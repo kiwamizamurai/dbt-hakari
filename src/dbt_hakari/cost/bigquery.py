@@ -14,12 +14,10 @@ class BigQueryOnDemand:
     10 MiB regardless of the table's actual size, and that the minimum per query is 10 MiB.
     Views are expanded, so every base table beneath a view counts.
 
-    The model bills ``max(total bytes, 10 MiB x tables, 10 MiB)``. Applied literally, the
-    per-table rule gives ``sum over tables of max(bytes of that table, 10 MiB)``. The two agree
-    when every table is small (both give 10 MiB x tables) or every table is large (both give the
-    total). They differ when a query reads one large and several small tables, where the model
-    is optimistic by up to 10 MiB per small table. Per-table bytes are not available from a
-    dry-run, so the model keeps the total.
+    The bill is ``max(total bytes, 10 MiB x tables, 10 MiB)``: the minimum applies to the query
+    as a whole, not as a sum over tables. Measured on BigQuery: a query reading a 30 MiB column
+    of one table and a tiny table was billed 31 MiB (the per-table sum would be 40 MiB), and
+    one that reads only 1.5 MiB of a single table was billed 10 MiB.
     """
 
     name: str = "bigquery-on-demand"
@@ -29,7 +27,7 @@ class BigQueryOnDemand:
     min_per_query: int = 10 * MIB
     free_tib_per_month: float = 1.0
 
-    def billed_bytes(self, processed: int, n_tables: int) -> int:
+    def billed_bytes(self, processed: float, n_tables: int) -> float:
         return max(processed, self.min_per_table * n_tables, self.min_per_query)
 
     def min_unit_bytes(self) -> int:
@@ -42,8 +40,8 @@ class BigQueryOnDemand:
         return [
             "billed = max(bytes processed, 10 MiB x referenced tables, 10 MiB); "
             "views are expanded to their base tables",
-            "materializing a view does not change the bytes processed by its readers "
-            "(conservative; the reader may in fact read fewer bytes)",
+            "a query reads the same fraction of every table it touches; a view that becomes a "
+            "table is as large as the bytes its query processes unless told otherwise",
             "storage cost and data freshness are not modeled",
             f"price {self.price_per_tib} {self.currency}/TiB, first {self.free_tib_per_month} TiB "
             "per month free (not applied per node)",

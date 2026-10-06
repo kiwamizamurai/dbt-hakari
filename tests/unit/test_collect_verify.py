@@ -132,3 +132,18 @@ def test_thresholds_are_configurable():
     _, _, loose = run(graph, backend, thresholds=GateThresholds(tolerance=0.05))
     assert strict.bill_within_tol_rate == 0.0
     assert loose.bill_within_tol_rate == 1.0
+
+
+def test_models_changed_during_the_history_window_are_pointed_out():
+    # billed 400 MiB per table, but today's SQL predicts 30 MiB: the history is from another setup
+    graph, backend = build_world(billed_per_table=400 * MIB)
+    _, _, report = run(graph, backend)
+    assert report.stale_suspects
+    assert any("changed during the history window" in note for note in report.notes)
+
+
+def test_a_matching_history_raises_no_such_warning():
+    graph, backend = build_world()
+    _, _, report = run(graph, backend)
+    assert report.stale_suspects == []
+    assert not any("changed during the history window" in note for note in report.notes)

@@ -63,6 +63,14 @@ def _check_schema_version(manifest: dict[str, Any], path: Path, warnings: list[s
         )
 
 
+def _check_models(graph: Graph, path: Path) -> None:
+    if not any(n.kind.value.endswith("_model") for n in graph.nodes.values()):
+        raise ManifestError(
+            f"{path} contains no dbt models: is it the right manifest.json? "
+            "(run `dbt compile` in your project and point --manifest at target/manifest.json)"
+        )
+
+
 def _check_compiled(graph: Graph, path: Path, warnings: list[str]) -> None:
     executing = [*graph.executing_models(), *graph.tests()]
     missing = [
@@ -116,6 +124,20 @@ def load_manifest_with_warnings(path: Path) -> tuple[Graph, list[str]]:
             compiled_path=raw.get("compiled_path"),
             flags=_flags(code),
         )
-    graph = Graph(nodes)
+    exposed = frozenset(
+        uid
+        for exposure in (manifest.get("exposures") or {}).values()
+        for uid in (exposure.get("depends_on") or {}).get("nodes", [])
+        if uid in nodes
+    )
+    graph = Graph(nodes, exposed)
+    _check_models(graph, path)
+    duplicates = graph.duplicate_relations()
+    if duplicates:
+        shown = ", ".join(sorted(duplicates)[:2])
+        warnings.append(
+            f"{len(duplicates)} relation(s) belong to more than one node (e.g. {shown}): queries "
+            "from outside dbt are attributed to the model, not the source"
+        )
     _check_compiled(graph, path, warnings)
     return graph, warnings

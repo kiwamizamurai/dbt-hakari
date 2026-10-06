@@ -24,6 +24,17 @@ def node_sql(node: Node, project_dir: Path | None) -> str | None:
     return None
 
 
+def ensure_some_dry_run_worked(cost_data: CostData) -> None:
+    """When every dry-run fails the setup is wrong (region, project, credentials), not a model."""
+    errors = [c.error for c in cost_data.nodes.values()]
+    if errors and all(errors):
+        raise BackendError(
+            f"every dry-run failed (the first error: {errors[0]}). Check --location (the region "
+            "of your datasets), --project, and your credentials "
+            "(`gcloud auth application-default login`)"
+        )
+
+
 def collect(
     graph: Graph,
     backend: Backend,
@@ -70,10 +81,11 @@ def collect(
         finally:
             tick()
 
-    def leaf_weight(item: tuple[str, str]) -> tuple[str, int | None]:
+    def leaf_weight(item: tuple[str, str]) -> tuple[str, tuple[int, int] | None]:
         uid, relation = item
         try:
-            return uid, max(1, len(backend.dry_run(f"SELECT * FROM {relation}").referenced_tables))
+            result = backend.dry_run(f"SELECT * FROM {relation}")
+            return uid, (max(1, len(result.referenced_tables)), result.bytes_processed)
         except BackendError:
             return uid, None
         finally:
@@ -89,5 +101,6 @@ def collect(
         collected_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         manifest_sha256=manifest_sha256,
         nodes={c.uid: c for c in costs},
-        leaf_weight={u: w for u, w in weights.items() if w is not None and w != 1},
+        leaf_weight={u: w[0] for u, w in weights.items() if w is not None and w[0] != 1},
+        leaf_bytes={u: w[1] for u, w in weights.items() if w is not None},
     )

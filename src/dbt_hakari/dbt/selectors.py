@@ -5,7 +5,20 @@ from __future__ import annotations
 
 from fnmatch import fnmatchcase
 
+from dbt_hakari.errors import UsageError
 from dbt_hakari.graph import Node
+
+PREFIXES = ("tag", "path", "uid", "name", "package")
+
+
+def validate(patterns: list[str]) -> None:
+    for pattern in patterns:
+        prefix, sep, _ = pattern.partition(":")
+        if sep and prefix not in PREFIXES:
+            raise UsageError(
+                f"unknown selector {pattern!r}: use tag:, path:, uid:, name:, package: or a "
+                "model name glob"
+            )
 
 
 def matches(node: Node, pattern: str) -> bool:

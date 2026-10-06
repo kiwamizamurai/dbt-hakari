@@ -59,6 +59,7 @@ class Node:
 @dataclass
 class Graph:
     nodes: dict[str, Node]
+    exposed: frozenset[str] = frozenset()  # read by something dbt cannot see (exposures)
     _order: list[str] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -67,6 +68,23 @@ class Graph:
             if missing:
                 raise ValueError(f"{node.uid} has unknown parents: {missing}")
         self._order = sorted(self.nodes)
+
+    def relation_index(self) -> dict[str, str]:
+        """Normalized relation (``project.dataset.name``) -> uid, for everything that exists. When
+        two nodes share a relation, a model wins over a source."""
+        index: dict[str, str] = {}
+        for uid, n in sorted(self.nodes.items(), key=lambda item: item[1].kind is NodeKind.SOURCE):
+            if n.relation and n.kind is not NodeKind.TEST:
+                index.setdefault(relation_key(n.relation), uid)
+        return index
+
+    def duplicate_relations(self) -> dict[str, list[str]]:
+        """Relations that more than one node claims (a source and the model that rebuilds it)."""
+        seen: dict[str, list[str]] = {}
+        for uid, n in self.nodes.items():
+            if n.relation and n.kind is not NodeKind.TEST:
+                seen.setdefault(relation_key(n.relation), []).append(uid)
+        return {k: v for k, v in seen.items() if len(v) > 1}
 
     # -- classification -------------------------------------------------------------------
 
@@ -138,6 +156,12 @@ class Graph:
         materialized: frozenset[str] = frozenset(),
     ) -> int:
         return self.table_count_from(self.nodes[uid].parents, leaf_weight, materialized)
+
+
+def relation_key(relation: str) -> str:
+    """Normalize a relation to ``project.dataset.table`` (dbt prints it with backticks and BigQuery
+    ids may differ in case)."""
+    return relation.replace("`", "").lower()
 
 
 def graph_from_nodes(nodes: Iterable[Node]) -> Graph:

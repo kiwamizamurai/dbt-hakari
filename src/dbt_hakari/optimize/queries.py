@@ -1,27 +1,21 @@
-"""The set of queries that run every day, and what each one reads.
+"""The queries that run every day, assembled into a :class:`Problem`.
 
-Three kinds: table/incremental model builds, tests (grouped when identical), and the build of a
-view *if* it were materialized.
+Four kinds: models that stay as they are (incremental, or tables we may not change), tests
+(grouped when identical), queries other people run against the project's relations, and the
+build of every candidate (it only runs when the candidate is a table).
 """
 
 from __future__ import annotations
 
 import statistics
 from collections import defaultdict
-from dataclasses import dataclass
+from collections.abc import Mapping
 
+from dbt_hakari.cost.base import CostModel
 from dbt_hakari.costdata import CostData
 from dbt_hakari.graph import Graph
 from dbt_hakari.history import History
-
-
-@dataclass(frozen=True)
-class Query:
-    key: str
-    parents: tuple[str, ...]
-    bytes_processed: int
-    weight: float  # runs per day
-    build_of: str | None = None  # set for "the build of view X if X is materialized"
+from dbt_hakari.optimize.problem import Candidate, Problem, Query
 
 
 def runs_per_day(uid: str, history: History | None, assume_daily: bool) -> float:
@@ -43,29 +37,50 @@ def build_frequency(graph: Graph, history: History | None, assume_daily: bool) -
     return statistics.median(rates) if rates else 1.0
 
 
-def build_queries(
+def build_problem(
     graph: Graph,
     cost_data: CostData,
     history: History | None,
-    candidates: list[str],
+    cost_model: CostModel,
+    candidates: Mapping[str, Candidate],
     *,
     skip: frozenset[str] = frozenset(),
     assume_daily: bool = False,
     build_runs_per_day: float | None = None,
-) -> list[Query]:
+) -> Problem:
+    sizes = {uid: float(b) for uid, b in cost_data.leaf_bytes.items() if uid not in candidates}
+    problem = Problem(
+        graph=graph,
+        candidates=dict(candidates),
+        sizes=sizes,
+        leaf_weight=cost_data.leaf_weight,
+        queries=[],
+        cost_model=cost_model,
+    )
     if build_runs_per_day is None:
         build_runs_per_day = build_frequency(graph, history, assume_daily)
-    queries: list[Query] = []
+
+    def query(
+        key: str,
+        parents: tuple[str, ...],
+        weight: float,
+        bytes_processed: float,
+        build_of: str | None = None,
+    ) -> Query:
+        kappa = problem.fit_kappa(parents, bytes_processed)
+        return Query(key, parents, weight, bytes_processed, kappa, build_of)
+
+    queries = problem.queries
     for uid in graph.executing_models():
         cost = cost_data.nodes.get(uid)
-        if cost is None or cost.error or uid in skip:
+        if uid in candidates or cost is None or cost.error or uid in skip:
             continue
         queries.append(
-            Query(
+            query(
                 uid,
                 graph.nodes[uid].parents,
-                cost.bytes_processed,
                 runs_per_day(uid, history, assume_daily),
+                cost.bytes_processed,
             )
         )
 
@@ -78,17 +93,25 @@ def build_queries(
         grouped[(parents, cost.bytes_processed)].append(uid)
     for (parents, processed), uids in sorted(grouped.items()):
         weight = sum(runs_per_day(u, history, assume_daily) for u in uids)
-        queries.append(Query(f"tests:{uids[0]}+{len(uids) - 1}", parents, processed, weight))
+        queries.append(query(f"tests:{uids[0]}+{len(uids) - 1}", parents, weight, processed))
 
-    for uid in candidates:
+    if history is not None:
+        for uid, load in sorted(history.external.items()):
+            if uid in graph.nodes:
+                queries.append(
+                    query(f"external:{uid}", (uid,), load.runs_per_day, load.bytes_processed)
+                )
+
+    for uid in sorted(candidates):
         cost = cost_data.nodes[uid]
+        own = runs_per_day(uid, history, assume_daily) if candidates[uid].baseline_table else None
         queries.append(
-            Query(
+            query(
                 f"build:{uid}",
                 graph.nodes[uid].parents,
+                build_runs_per_day if own is None else own,
                 cost.bytes_processed,
-                build_runs_per_day,
                 build_of=uid,
             )
         )
-    return queries
+    return problem

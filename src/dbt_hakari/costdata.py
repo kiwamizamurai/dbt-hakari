@@ -26,3 +26,4 @@ class CostData(Model):
     manifest_sha256: str | None = None
     nodes: dict[str, NodeCost] = Field(default_factory=dict)
     leaf_weight: dict[str, int] = Field(default_factory=dict)
+    leaf_bytes: dict[str, Bytes] = Field(default_factory=dict)  # size of each table that exists

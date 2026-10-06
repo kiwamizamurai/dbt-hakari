@@ -1,13 +1,21 @@
 name: CI
 
-# Kept small on purpose: one Linux job per end of the supported Python range, and only when code
-# or dependencies change (docs-only pushes do not run it).
+# Kept small on purpose: one Linux job per end of the supported Python range. It also runs when the
+# docs change, because a test checks that no real project or person name slips into them.
 on:
   push:
     branches: [main]
-    paths: ["src/**", "tests/**", "pyproject.toml", "uv.lock", ".github/workflows/ci.yml"]
+    paths: &paths
+      - "src/**"
+      - "tests/**"
+      - "docs/**"
+      - "*.md"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".pre-commit-config.yaml"
+      - ".github/workflows/ci.yml"
   pull_request:
-    paths: ["src/**", "tests/**", "pyproject.toml", "uv.lock", ".github/workflows/ci.yml"]
+    paths: *paths
 
 concurrency:
   group: ci-${{ github.ref }}

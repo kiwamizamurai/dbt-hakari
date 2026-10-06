@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # organisations and projects the author works with are NOT written in this public file: put them
 # (one regex per line) in the untracked file `.forbidden-terms` or in $HAKARI_FORBIDDEN_TERMS.
 GENERIC = [
-    r"[\w.+-]+@(?!users\.noreply\.github\.com)[\w-]+\.(com|net|org|jp)",
+    r"[\w.+-]+@(?!users\.noreply\.github\.com|example\.(com|net|org)|[\w-]+\.test\b)[\w-]+\.(com|net|org|jp)",
     r"/Users/\w+/",
     r"AIza[0-9A-Za-z_-]{20}",
 ]

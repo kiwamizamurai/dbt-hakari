@@ -12,7 +12,7 @@ from tests.world import MIB, build_world
 runner = CliRunner()
 
 
-def setup(tmp_path, monkeypatch, **world):
+def make_project(tmp_path, monkeypatch, **world):
     graph, backend = build_world(**world)
     manifest = tmp_path / "target" / "manifest.json"
     manifest.parent.mkdir()
@@ -42,7 +42,7 @@ def test_version():
 
 
 def test_collect_verify_optimize_end_to_end(tmp_path, monkeypatch):
-    common, data = setup(tmp_path, monkeypatch)
+    common, data = make_project(tmp_path, monkeypatch)
     assert invoke("collect", *common, "--location", "US").exit_code == 0
     assert (data / "costdata.json").exists() and (data / "history.json").exists()
 
@@ -59,7 +59,7 @@ def test_collect_verify_optimize_end_to_end(tmp_path, monkeypatch):
 
 
 def test_a_failing_gate_refuses_to_optimize_unless_forced(tmp_path, monkeypatch):
-    common, data = setup(tmp_path, monkeypatch, billed_per_table=5 * MIB)
+    common, data = make_project(tmp_path, monkeypatch, billed_per_table=5 * MIB)
     assert invoke("collect", *common, "--location", "US").exit_code == 0
     assert invoke("verify", *common).exit_code == 4
     refused = invoke("optimize", *common, "--assume-daily")
@@ -71,14 +71,14 @@ def test_a_failing_gate_refuses_to_optimize_unless_forced(tmp_path, monkeypatch)
 
 
 def test_optimize_without_collect_is_a_usage_error(tmp_path, monkeypatch):
-    common, _ = setup(tmp_path, monkeypatch)
+    common, _ = make_project(tmp_path, monkeypatch)
     result = invoke("optimize", *common)
     assert result.exit_code == 2
     assert "collect" in result.output
 
 
 def test_collect_needs_a_location(tmp_path, monkeypatch):
-    setup(tmp_path, monkeypatch)
+    make_project(tmp_path, monkeypatch)
     monkeypatch.undo()  # use the real backend factory, which demands a location
     result = invoke("collect", "--manifest", str(tmp_path / "target" / "manifest.json"))
     assert result.exit_code == 2

@@ -9,3 +9,8 @@ build/
 .pytest_cache/
 *.egg-info/
 .forbidden-terms
+.DS_Store
+.env
+.hypothesis/
+.coverage
+htmlcov/

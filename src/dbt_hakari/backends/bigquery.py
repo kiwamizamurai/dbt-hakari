@@ -9,23 +9,35 @@ from dbt_hakari.backends.base import DryRunResult, JobRecord
 from dbt_hakari.errors import BackendError
 
 _JOBS_SQL = r"""
+WITH jobs AS (
+  SELECT
+    (query LIKE '%"app": "dbt"%'
+     AND REGEXP_CONTAINS(query, r'"node_id": "(model|test|seed|snapshot)\.')) AS from_dbt,
+    query, total_bytes_billed, total_bytes_processed, cache_hit, error_result, statement_type,
+    reservation_id, creation_time, referenced_tables, user_email
+  FROM `region-{location}`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+  WHERE creation_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+    AND job_type = 'QUERY'
+    AND state = 'DONE'
+)
 SELECT
-  REGEXP_EXTRACT(query, r'"node_id": "([^"]+)"') AS node_id,
+  IF(from_dbt, REGEXP_EXTRACT(query, r'"node_id": "([^"]+)"'), NULL) AS node_id,
+  from_dbt,
   total_bytes_billed AS billed_bytes,
+  total_bytes_processed AS processed_bytes,
+  user_email AS user,
   IFNULL(cache_hit, FALSE) AS cache_hit,
   error_result IS NOT NULL AS error,
   statement_type,
   reservation_id,
-  FORMAT_DATE('%Y-%m-%d', DATE(creation_time)) AS creation_day
-FROM `region-{location}`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
-WHERE creation_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
-  AND job_type = 'QUERY'
-  AND state = 'DONE'
-  AND query LIKE '%"app": "dbt"%'
-  AND REGEXP_CONTAINS(query, r'"node_id": "(model|test|seed|snapshot)\.')
+  FORMAT_DATE('%Y-%m-%d', DATE(creation_time)) AS creation_day,
+  IF(from_dbt, [], ARRAY(SELECT CONCAT(t.project_id, '.', t.dataset_id, '.', t.table_id)
+                         FROM UNNEST(referenced_tables) AS t)) AS referenced
+FROM jobs
+WHERE from_dbt OR ARRAY_LENGTH(referenced_tables) > 0
 """
 
-_LOCATION = re.compile(r"^[a-z0-9-]+$")
+_LOCATION = re.compile(r"^[A-Za-z0-9-]+$")  # US, EU, europe-west1, ...
 
 
 class BigQueryBackend:
@@ -44,7 +56,13 @@ class BigQueryBackend:
         self._bigquery = bigquery
         self._location = location
         self._max_bytes_billed = max_bytes_billed
-        self._client = bigquery.Client(project=project, location=location)
+        try:
+            self._client = bigquery.Client(project=project, location=location)
+        except Exception as error:  # DefaultCredentialsError and friends
+            raise BackendError(
+                f"cannot connect to BigQuery: {error}. Log in with "
+                "`gcloud auth application-default login` and pass --project"
+            ) from error
         self.project = self._client.project
 
     def dry_run(self, sql: str) -> DryRunResult:
@@ -59,10 +77,10 @@ class BigQueryBackend:
         return DryRunResult(int(job.total_bytes_processed or 0), tables)
 
     def list_jobs(self, lookback_days: int) -> Iterable[JobRecord]:
-        sql = _JOBS_SQL.format(location=self._location, days=int(lookback_days))
+        sql = _JOBS_SQL.format(location=self._location.lower(), days=int(lookback_days))
         config = self._bigquery.QueryJobConfig(maximum_bytes_billed=self._max_bytes_billed)
         try:
-            rows = self._client.query(sql, job_config=config).result()
+            rows = list(self._client.query(sql, job_config=config).result())
         except Exception as error:
             raise BackendError(f"cannot read job history: {error}") from error
         for row in rows:
@@ -74,4 +92,8 @@ class BigQueryBackend:
                 statement_type=row["statement_type"] or "",
                 reservation_id=row["reservation_id"],
                 creation_day=row["creation_day"],
+                processed_bytes=int(row["processed_bytes"] or 0),
+                from_dbt=bool(row["from_dbt"]),
+                referenced=tuple(row["referenced"] or ()),
+                user=row["user"],
             )

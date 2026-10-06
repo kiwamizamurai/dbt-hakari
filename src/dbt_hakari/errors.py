@@ -25,7 +25,7 @@ class BackendError(KannaError):
     exit_code = 5
 
 
-class SolverTimeLimit(KannaError):
-    """The solver stopped on its time limit before reaching the requested gap."""
+class SolverFailed(KannaError):
+    """The solver stopped without a solution (its time limit, or an infeasible model)."""
 
     exit_code = 6

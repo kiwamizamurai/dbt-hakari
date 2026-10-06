@@ -22,6 +22,10 @@ class JobRecord:
     statement_type: str = "SELECT"
     reservation_id: str | None = None
     creation_day: str | None = None  # YYYY-MM-DD
+    processed_bytes: int = 0
+    from_dbt: bool = True  # False: a query somebody else ran (a BI tool, an analyst)
+    referenced: tuple[str, ...] = ()  # project.dataset.table, only kept for non-dbt jobs
+    user: str | None = None  # who ran it (a person's address or a service account)
 
 
 class Backend(Protocol):

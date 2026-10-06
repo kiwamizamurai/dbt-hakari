@@ -81,3 +81,29 @@ def test_excluded_views_are_reported_with_a_reason():
     )
     assert "exclude pattern" in plan.excluded["V"]
     assert plan.n_candidates == 0 and plan.curve[-1].chosen == ()
+
+
+def test_greedy_stops_when_another_view_would_cost_more():
+    from dbt_hakari.optimize.greedy import greedy
+
+    costs = {frozenset(): 10.0, frozenset("a"): 6.0, frozenset("b"): 9.0, frozenset("ab"): 7.0}
+    path = greedy(["a", "b"], lambda s: costs[s], 2)
+    assert path == [frozenset(), frozenset("a"), frozenset("a")]
+
+
+def test_greedy_can_still_lose_when_the_best_sets_are_not_nested():
+    from dbt_hakari.optimize.greedy import greedy
+
+    # the best single view is a, but the best pair is {b, c}
+    costs = {
+        frozenset(): 10.0,
+        frozenset("a"): 6.0,
+        frozenset("b"): 7.0,
+        frozenset("c"): 7.0,
+        frozenset("ab"): 5.5,
+        frozenset("ac"): 5.5,
+        frozenset("bc"): 3.0,
+    }
+    path = greedy(["a", "b", "c"], lambda s: costs[frozenset(s)], 2)
+    assert path[1] == frozenset("a")
+    assert costs[path[2]] > min(costs[frozenset(p)] for p in ("ab", "ac", "bc"))

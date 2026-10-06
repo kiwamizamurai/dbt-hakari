@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import statistics
 from enum import Enum
+from typing import Literal
 
 from pydantic import Field
 
@@ -63,13 +64,14 @@ class NodeCheck(FrozenModel):
     dryrun_tables: Count
     table_match: bool
     predicted_billed: Bytes
-    actual_billed_p50: Bytes | None
+    actual_billed: Bytes | None
     rel_err: float | None  # (actual - predicted) / predicted; > 0 means the bill is higher
     status: CheckStatus
     reason: str | None = None
 
 
 class VerificationReport(Model):
+    schema_version: Literal[1] = 1
     checks: dict[str, NodeCheck] = Field(default_factory=dict)
     graph_match_rate: float = 0.0
     n_graph_checked: Count = 0
@@ -78,6 +80,7 @@ class VerificationReport(Model):
     overestimate_rate: float | None = None
     underestimate_rate: float | None = None
     median_abs_err: float | None = None
+    stale_suspects: list[str] = Field(default_factory=list)  # billed far more than today's SQL
     excluded: dict[str, str] = Field(default_factory=dict)
     notes: list[str] = Field(default_factory=list)
     verdict: Verdict = Verdict.WARN
@@ -136,6 +139,8 @@ def verify(
     n_graph = n_graph_ok = 0
     errors: list[float] = []
     over = under = within = 0
+    far_off: list[tuple[float, str]] = []
+    under_ids: list[str] = []
     for uid, cost in sorted(cost_data.nodes.items()):
         node = graph.nodes.get(uid)
         if node is None or node.kind is NodeKind.SOURCE:
@@ -148,7 +153,7 @@ def verify(
                 dryrun_tables=0,
                 table_match=False,
                 predicted_billed=0,
-                actual_billed_p50=None,
+                actual_billed=None,
                 rel_err=None,
                 status=CheckStatus.EXCLUDED,
                 reason=cost.error,
@@ -177,6 +182,8 @@ def verify(
             status = CheckStatus.NO_HISTORY
         else:
             rel_err = (actual - predicted) / predicted if predicted else None
+            if actual > 2 * predicted and actual - predicted >= 100 * 1024**2:
+                far_off.append((actual - predicted, uid))
             if rel_err is not None:
                 errors.append(abs(rel_err))
                 if abs(rel_err) <= t.tolerance:
@@ -186,6 +193,7 @@ def verify(
                     status = CheckStatus.BILL_MISMATCH
                 else:
                     under += 1
+                    under_ids.append(uid)
                     status = CheckStatus.BILL_MISMATCH
         report.checks[uid] = NodeCheck(
             uid=uid,
@@ -193,12 +201,21 @@ def verify(
             dryrun_tables=cost.n_tables,
             table_match=match,
             predicted_billed=predicted,
-            actual_billed_p50=actual,
+            actual_billed=actual,
             rel_err=rel_err,
             status=status,
             reason=reason,
         )
 
+    if far_off:
+        far_off.sort(reverse=True)
+        report.stale_suspects = [uid for _, uid in far_off]
+        names = ", ".join(graph.nodes[uid].name for _, uid in far_off[:3])
+        report.notes.append(
+            f"{len(far_off)} node(s) were billed much more than today's SQL predicts "
+            f"(e.g. {names}). They were probably changed during the history window, and their "
+            "old runs are still in it. Compare again after a few days, or lower --recent-days"
+        )
     report.n_graph_checked = n_graph
     report.graph_match_rate = n_graph_ok / n_graph if n_graph else 0.0
     report.n_bill_samples = len(errors)
@@ -208,11 +225,11 @@ def verify(
         report.underestimate_rate = under / len(errors)
         report.median_abs_err = statistics.median(errors)
         if under:
+            names = ", ".join(graph.nodes[u].name for u in under_ids[:3])
             report.notes.append(
-                f"{under} node(s) were billed more than the formula predicts. A common cause is "
-                "a query that reads one large and several small tables: BigQuery applies the "
-                "10 MiB minimum to each table, the formula applies it to the total. The model is "
-                "then optimistic about how much a view's extra tables cost"
+                f"{under} node(s) were billed more than the formula predicts (e.g. {names}). "
+                "Look for work a dry-run cannot see: a MERGE or insert_overwrite into a large "
+                "table, or SQL that changed since the history"
             )
 
     verdict = _graph_verdict(report.graph_match_rate, t) if n_graph else Verdict.FAIL

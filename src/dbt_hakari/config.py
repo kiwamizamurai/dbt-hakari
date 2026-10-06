@@ -13,8 +13,8 @@ else:  # pragma: no cover
 
 from dbt_hakari.errors import UsageError
 from dbt_hakari.models import Model
-from dbt_hakari.optimize.options import OptimizeOptions
-from dbt_hakari.units import Count, PositiveFloat, PositiveInt, Ratio
+from dbt_hakari.optimize.options import Direction, OptimizeOptions
+from dbt_hakari.units import Bytes, Count, PositiveFloat, PositiveInt, Ratio
 from dbt_hakari.verify import GateThresholds
 
 
@@ -42,6 +42,12 @@ class Settings(Model):
     exclude: list[str] = Field(default_factory=list)
     suppressions: dict[str, str] = Field(default_factory=dict)  # from .hakari-ignore
     assume_daily: bool = False
+    direction: Direction = Direction.BOTH
+    output_ratio: PositiveFloat = 1.0
+    sizes: dict[str, Bytes] = Field(default_factory=dict)  # [sizes] uid or name -> bytes
+    only_users: list[str] = Field(default_factory=list)  # count only jobs run by these users
+    exclude_users: list[str] = Field(default_factory=list)  # ... and not these (a laptop)
+    all_users: bool = False  # count everyone's dbt jobs, laptops included
     data_dir: Path = Path(".hakari")
 
     @classmethod
@@ -67,8 +73,10 @@ class Settings(Model):
         if path.name == "pyproject.toml":
             raw = (raw.get("tool") or {}).get("dbt-hakari") or {}
         flat: dict[str, Any] = {}
-        for section in raw.values():
-            if isinstance(section, dict):
+        for name, section in raw.items():
+            if name == "sizes":
+                flat["sizes"] = section
+            elif isinstance(section, dict):
                 flat.update(section)
         try:
             return cls.model_validate(flat)
@@ -83,6 +91,9 @@ class Settings(Model):
             exclude=(*self.exclude, *self.suppressions),
             exclude_reasons=dict(self.suppressions),
             assume_daily=self.assume_daily,
+            direction=self.direction,
+            output_ratio=self.output_ratio,
+            sizes=dict(self.sizes),
         )
 
     def gate_thresholds(self) -> GateThresholds:

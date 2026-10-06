@@ -58,7 +58,7 @@ def test_markdown_output(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0
     assert "### dbt-hakari trust gate: PASS" in result.stdout
-    assert "| K | GiB/day |" in result.stdout
+    assert "| changes | GiB/day |" in result.stdout
 
 
 def test_failed_gate_still_prints_json_and_exits_4(tmp_path, monkeypatch):
@@ -205,7 +205,7 @@ def test_a_corrupt_data_file_asks_for_a_new_collect(tmp_path, monkeypatch):
     costdata.write_text(json.dumps(payload))
     result = runner.invoke(cli.app, ["verify", *args])
     assert result.exit_code == 2
-    assert "re-run" in result.output and "collect" in result.output
+    assert "collect" in result.output and "again" in result.output
 
 
 def test_saved_files_round_trip(tmp_path, monkeypatch):
